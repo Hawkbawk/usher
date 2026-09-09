@@ -38,9 +38,9 @@ var plistTemplate = template.Must(template.New("plist").Parse(`<?xml version="1.
 	<key>KeepAlive</key>
 	<true/>
 	<key>StandardOutPath</key>
-	<string>{{.StateDir}}/log/usher.log</string>
+	<string>{{.LogPath}}</string>
 	<key>StandardErrorPath</key>
-	<string>{{.StateDir}}/log/usher.err.log</string>
+	<string>{{.ErrLogPath}}</string>
 	<key>EnvironmentVariables</key>
 	<dict>
 		<key>HOME</key>
@@ -206,10 +206,11 @@ func installLaunchdJob(cfg *config.Config, exe string) error {
 
 	var buf bytes.Buffer
 	if err := plistTemplate.Execute(&buf, struct {
-		Label    string
-		ExecPath string
-		StateDir string
-	}{launchdLabel, exe, cfg.StateDir}); err != nil {
+		Label      string
+		ExecPath   string
+		LogPath    string
+		ErrLogPath string
+	}{launchdLabel, exe, cfg.LogPath(), cfg.ErrLogPath()}); err != nil {
 		return err
 	}
 	desired := buf.Bytes()

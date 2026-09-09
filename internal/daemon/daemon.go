@@ -43,51 +43,67 @@ type Daemon struct {
 // Run starts everything and blocks until SIGINT or SIGTERM.
 func Run(cfg *config.Config) error {
 	for _, dir := range []string{cfg.StateDir, cfg.CaddyStorageDir()} {
+		log.Printf("usher: ensuring dir %s exists", dir)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
+			return fmt.Errorf("creating dir %s: %w", dir, err)
 		}
 	}
 
+	log.Printf("usher: opening route store at %s", cfg.RoutesPath())
 	store, err := route.NewStore(cfg.RoutesPath())
 	if err != nil {
-		return err
+		return fmt.Errorf("opening route store: %w", err)
 	}
+	log.Printf("usher: route store loaded (%d route(s))", len(store.List()))
 	d := &Daemon{cfg: cfg, store: store}
 
+	log.Printf("usher: loading deSEC token from %s", cfg.TokenFile)
 	if err := proxy.LoadToken(cfg); err != nil {
-		return err
+		return fmt.Errorf("loading token: %w", err)
 	}
+	log.Print("usher: deSEC token loaded")
 
 	// Both the DNS server and Caddy bind this address, so it has to exist
 	// before either starts.
+	log.Printf("usher: ensuring loopback alias %s", cfg.ListenAddress)
 	if err := netalias.Ensure(cfg.ListenAddress); err != nil {
-		return err
+		return fmt.Errorf("ensuring loopback alias: %w", err)
 	}
+	log.Print("usher: loopback alias present")
 
 	// Caddy needs a running instance before Load will attach a config to it.
+	log.Print("usher: starting caddy runtime")
 	if err := caddy.Run(&caddy.Config{}); err != nil {
 		return fmt.Errorf("starting caddy: %w", err)
 	}
+	log.Print("usher: caddy runtime started")
 
+	log.Printf("usher: constructing dns server for domain %s", cfg.Domain)
 	dnsServer, err := dnsd.New(cfg.Domain, cfg.ListenAddress)
 	if err != nil {
-		return err
+		return fmt.Errorf("constructing dns server: %w", err)
 	}
 	// 127.0.0.1 is where /etc/resolver/<domain> points the host resolver; the
 	// alias is where sandbox microVMs reach us.
+	log.Printf("usher: starting dns server on port %d (127.0.0.1, %s)", cfg.DNSPort, cfg.ListenAddress)
 	if err := dnsServer.Start(cfg.DNSPort, net.IPv4(127, 0, 0, 1), cfg.ListenAddress); err != nil {
-		return err
+		return fmt.Errorf("starting dns server: %w", err)
 	}
+	log.Print("usher: dns server started")
 	defer dnsServer.Stop()
 
+	log.Print("usher: applying caddyfile from current route table")
 	if err := d.apply(); err != nil {
-		return err
+		return fmt.Errorf("applying initial caddyfile: %w", err)
 	}
+	log.Print("usher: caddyfile applied")
 
+	log.Printf("usher: opening api socket at %s", cfg.SocketPath())
 	ln, err := d.listen()
 	if err != nil {
-		return err
+		return fmt.Errorf("opening api socket: %w", err)
 	}
+	log.Print("usher: api socket open")
 	srv := grpc.NewServer()
 	usherv1.RegisterRouteServiceServer(srv, d)
 	go func() {
@@ -115,19 +131,21 @@ func Run(cfg *config.Config) error {
 func (d *Daemon) listen() (net.Listener, error) {
 	path := d.cfg.SocketPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating socket dir %s: %w", filepath.Dir(path), err)
 	}
 	// A stale socket from an unclean shutdown would make Listen fail.
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return nil, err
+		return nil, fmt.Errorf("removing stale socket %s: %w", path, err)
+	} else if err == nil {
+		log.Printf("usher: removed stale socket at %s", path)
 	}
 
 	ln, err := net.Listen("unix", path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listening on %s: %w", path, err)
 	}
 	if err := os.Chmod(path, 0o666); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("chmod %s: %w", path, err)
 	}
 	return ln, nil
 }
