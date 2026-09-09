@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -21,10 +23,13 @@ This is what the launchd job starts. It needs root: it adds the loopback
 alias, binds 443, and reads the deSEC token.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			log.Printf("usher: daemon starting (pid %d), reading config from %s", os.Getpid(), config.Path())
 			cfg, err := config.Load()
 			if err != nil {
-				return err
+				return fmt.Errorf("loading config: %w", err)
 			}
+			log.Printf("usher: config loaded: domain=%s listenAddress=%s dnsPort=%d stateDir=%s tokenFile=%s portRange=%d-%d",
+				cfg.Domain, cfg.ListenAddress, cfg.DNSPort, cfg.StateDir, cfg.TokenFile, cfg.PortMin, cfg.PortMax)
 			return daemon.Run(cfg)
 		},
 	}
@@ -51,6 +56,7 @@ alias, binds 443, and reads the deSEC token.`,
 
 	cmd.AddCommand(newDaemonInstallCmd())
 	cmd.AddCommand(newDaemonUninstallCmd())
+	cmd.AddCommand(newDaemonLogsCmd())
 
 	return cmd
 }

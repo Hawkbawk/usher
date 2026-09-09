@@ -84,6 +84,16 @@ func (c *Config) CaddyStorageDir() string { return filepath.Join(c.StateDir, "ca
 // RoutesPath is the daemon's persisted route table.
 func (c *Config) RoutesPath() string { return filepath.Join(c.StateDir, "routes.json") }
 
+// LogPath is where launchd redirects the daemon's stdout. Must match the
+// StandardOutPath the nix-darwin module and `daemon install` write into the
+// launchd plist.
+func (c *Config) LogPath() string { return filepath.Join(c.StateDir, "log", "usher.log") }
+
+// ErrLogPath is where launchd redirects the daemon's stderr. Must match the
+// StandardErrorPath the nix-darwin module and `daemon install` write into the
+// launchd plist.
+func (c *Config) ErrLogPath() string { return filepath.Join(c.StateDir, "log", "usher.err.log") }
+
 // Path resolves the config location: $USHER_CONFIG wins, then the system file,
 // then a per-user file for people not using the darwin module.
 func Path() string {
