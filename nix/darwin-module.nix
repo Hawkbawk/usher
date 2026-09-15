@@ -194,8 +194,10 @@ in
           "${lib.getExe cfg.package}"
           "daemon"
         ];
-        RunAtLoad = true;
         KeepAlive = true;
+        # Not RunAtLoad: waits for /nix to actually be mounted at boot,
+        # avoiding a spawn race that can penalty-box the job.
+        WatchPaths = [ "/nix" ];
         StandardOutPath = "${cfg.stateDir}/log/usher.log";
         StandardErrorPath = "${cfg.stateDir}/log/usher.err.log";
         EnvironmentVariables = {
