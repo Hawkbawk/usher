@@ -190,14 +190,23 @@ in
 
     launchd.daemons.usher-daemon = {
       serviceConfig = {
+        # At boot launchd can try to exec before /nix is mounted. launchd
+        # reports that as EX_CONFIG (78) and may never retry, so wait for the
+        # binary from /bin/sh (always available) and then exec it.
         ProgramArguments = [
+          "/bin/sh"
+          "-c"
+          ''
+            while [ ! -x "$1" ]; do sleep 1; done
+            exec "$1" daemon
+          ''
+          "usher-daemon"
           "${lib.getExe cfg.package}"
-          "daemon"
         ];
+        RunAtLoad = true;
         KeepAlive = true;
-        # Not RunAtLoad: waits for /nix to actually be mounted at boot,
-        # avoiding a spawn race that can penalty-box the job.
-        WatchPaths = [ "/nix" ];
+        # Retry quickly if the daemon exits (e.g. the token file isn't there yet).
+        ThrottleInterval = 5;
         StandardOutPath = "${cfg.stateDir}/log/usher.log";
         StandardErrorPath = "${cfg.stateDir}/log/usher.err.log";
         EnvironmentVariables = {
