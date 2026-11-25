@@ -46,6 +46,10 @@ func ParseStatic(s string) (ip string, port int, ok bool) {
 	if err != nil {
 		return "", 0, false
 	}
+
+	if h == "localhost" {
+		h = "127.0.0.1"
+	}
 	if net.ParseIP(h) == nil {
 		return "", 0, false
 	}

@@ -58,3 +58,22 @@ func For(kind route.Adapter) (Adapter, error) {
 	}
 	return nil, fmt.Errorf("no adapter for %q", kind)
 }
+
+// Lister is implemented by adapters that can enumerate their machines, which
+// is what lets the interactive `usher add` offer a picker for them. Adapters
+// that don't implement won't appear in the interactive picker.
+type Lister interface {
+	Adapter
+
+	// Label is the human-readable name shown in the adapter picker.
+	Label() string
+
+	// Machines lists the machines that can be routed to.
+	Machines(ctx context.Context) ([]string, error)
+}
+
+// Listers returns every adapter that supports interactive selection, in the
+// order they should be offered.
+func Listers() []Lister {
+	return []Lister{Sbx{}}
+}

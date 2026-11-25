@@ -98,6 +98,23 @@ func (c *Client) Remove(host string) (route.Route, bool, error) {
 	return FromProto(resp.GetRoute()), true, nil
 }
 
+// RemoveMany removes several hosts' routes in one call and returns the ones
+// that existed.
+func (c *Client) RemoveMany(hosts []string) ([]route.Route, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
+	defer cancel()
+
+	resp, err := c.routes.RemoveRoutes(ctx, &usherv1.RemoveRoutesRequest{Hosts: hosts})
+	if err != nil {
+		return nil, callErr(err)
+	}
+	out := make([]route.Route, 0, len(resp.GetRoutes()))
+	for _, r := range resp.GetRoutes() {
+		out = append(out, FromProto(r))
+	}
+	return out, nil
+}
+
 // RemoveMachine removes every route pointing at a machine, e.g. when the
 // machine itself is being destroyed.
 func (c *Client) RemoveMachine(adapter route.Adapter, machine string) ([]route.Route, error) {

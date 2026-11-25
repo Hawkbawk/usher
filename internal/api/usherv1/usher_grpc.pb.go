@@ -28,6 +28,7 @@ const (
 	RouteService_ListRoutes_FullMethodName          = "/usher.v1.RouteService/ListRoutes"
 	RouteService_UpsertRoute_FullMethodName         = "/usher.v1.RouteService/UpsertRoute"
 	RouteService_RemoveRoute_FullMethodName         = "/usher.v1.RouteService/RemoveRoute"
+	RouteService_RemoveRoutes_FullMethodName        = "/usher.v1.RouteService/RemoveRoutes"
 	RouteService_RemoveMachineRoutes_FullMethodName = "/usher.v1.RouteService/RemoveMachineRoutes"
 )
 
@@ -40,6 +41,8 @@ type RouteServiceClient interface {
 	// RemoveRoute succeeds even when the host has no route: `usher down` should
 	// still tear the machine down when only the route is already gone.
 	RemoveRoute(ctx context.Context, in *RemoveRouteRequest, opts ...grpc.CallOption) (*RemoveRouteResponse, error)
+	// RemoveRoutes is RemoveRoute for many hosts, with a single Caddy reload.
+	RemoveRoutes(ctx context.Context, in *RemoveRoutesRequest, opts ...grpc.CallOption) (*RemoveRoutesResponse, error)
 	RemoveMachineRoutes(ctx context.Context, in *RemoveMachineRoutesRequest, opts ...grpc.CallOption) (*RemoveMachineRoutesResponse, error)
 }
 
@@ -81,6 +84,16 @@ func (c *routeServiceClient) RemoveRoute(ctx context.Context, in *RemoveRouteReq
 	return out, nil
 }
 
+func (c *routeServiceClient) RemoveRoutes(ctx context.Context, in *RemoveRoutesRequest, opts ...grpc.CallOption) (*RemoveRoutesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveRoutesResponse)
+	err := c.cc.Invoke(ctx, RouteService_RemoveRoutes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *routeServiceClient) RemoveMachineRoutes(ctx context.Context, in *RemoveMachineRoutesRequest, opts ...grpc.CallOption) (*RemoveMachineRoutesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RemoveMachineRoutesResponse)
@@ -100,6 +113,8 @@ type RouteServiceServer interface {
 	// RemoveRoute succeeds even when the host has no route: `usher down` should
 	// still tear the machine down when only the route is already gone.
 	RemoveRoute(context.Context, *RemoveRouteRequest) (*RemoveRouteResponse, error)
+	// RemoveRoutes is RemoveRoute for many hosts, with a single Caddy reload.
+	RemoveRoutes(context.Context, *RemoveRoutesRequest) (*RemoveRoutesResponse, error)
 	RemoveMachineRoutes(context.Context, *RemoveMachineRoutesRequest) (*RemoveMachineRoutesResponse, error)
 	mustEmbedUnimplementedRouteServiceServer()
 }
@@ -119,6 +134,9 @@ func (UnimplementedRouteServiceServer) UpsertRoute(context.Context, *UpsertRoute
 }
 func (UnimplementedRouteServiceServer) RemoveRoute(context.Context, *RemoveRouteRequest) (*RemoveRouteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveRoute not implemented")
+}
+func (UnimplementedRouteServiceServer) RemoveRoutes(context.Context, *RemoveRoutesRequest) (*RemoveRoutesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoveRoutes not implemented")
 }
 func (UnimplementedRouteServiceServer) RemoveMachineRoutes(context.Context, *RemoveMachineRoutesRequest) (*RemoveMachineRoutesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveMachineRoutes not implemented")
@@ -198,6 +216,24 @@ func _RouteService_RemoveRoute_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RouteService_RemoveRoutes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveRoutesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RouteServiceServer).RemoveRoutes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RouteService_RemoveRoutes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RouteServiceServer).RemoveRoutes(ctx, req.(*RemoveRoutesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RouteService_RemoveMachineRoutes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RemoveMachineRoutesRequest)
 	if err := dec(in); err != nil {
@@ -234,6 +270,10 @@ var RouteService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveRoute",
 			Handler:    _RouteService_RemoveRoute_Handler,
+		},
+		{
+			MethodName: "RemoveRoutes",
+			Handler:    _RouteService_RemoveRoutes_Handler,
 		},
 		{
 			MethodName: "RemoveMachineRoutes",

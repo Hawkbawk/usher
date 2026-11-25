@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -247,6 +248,26 @@ func (s *Store) Remove(host string) (Route, bool, error) {
 	return r, true, s.saveLocked()
 }
 
+// RemoveHosts drops each host's route in one save. Hosts with no route are
+// skipped. It returns the routes that were removed, sorted by host.
+func (s *Store) RemoveHosts(hosts []string) ([]Route, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var removed []Route
+	for _, h := range hosts {
+		if r, ok := s.routes[h]; ok {
+			removed = append(removed, r)
+			delete(s.routes, h)
+		}
+	}
+	if len(removed) == 0 {
+		return nil, nil
+	}
+	sort.Slice(removed, func(i, j int) bool { return removed[i].Host < removed[j].Host })
+	return removed, s.saveLocked()
+}
+
 // RemoveMachine drops every route pointing at a machine, e.g. when the machine
 // itself is being destroyed. It returns the routes that were removed.
 func (s *Store) RemoveMachine(adapter Adapter, machine string) ([]Route, error) {
@@ -299,4 +320,13 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	return os.Rename(tmp, s.path)
+}
+
+// ParsePort parses a TCP port number from user input.
+func ParsePort(s string) (int, error) {
+	p, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil || p < 1 || p > 65535 {
+		return 0, fmt.Errorf("%q is not a port between 1 and 65535", s)
+	}
+	return p, nil
 }
