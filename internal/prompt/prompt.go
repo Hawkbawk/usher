@@ -147,3 +147,30 @@ func routeForm(machines []string, machine, port, host *string) *huh.Form {
 			}),
 	))
 }
+
+// SelectRoutes shows every route as its URL and returns the hostnames the user
+// ticked. Nothing ticked returns an empty slice.
+func SelectRoutes(ctx context.Context, routes []route.Route, domain string, opts ...Option) ([]string, error) {
+	var cfg config
+	for _, o := range opts {
+		o(&cfg)
+	}
+
+	options := make([]huh.Option[string], len(routes))
+	for i, r := range routes {
+		options[i] = huh.NewOption(fmt.Sprintf("https://%s.%s", r.Host, domain), r.Host)
+	}
+
+	var hosts []string
+	form := huh.NewForm(huh.NewGroup(
+		huh.NewMultiSelect[string]().
+			Title("Which URLs should be removed?").
+			Description("space to select, enter to confirm").
+			Options(options...).
+			Value(&hosts),
+	))
+	if err := cfg.run(ctx, form); err != nil {
+		return nil, err
+	}
+	return hosts, nil
+}

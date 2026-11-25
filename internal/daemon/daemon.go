@@ -225,6 +225,30 @@ func (d *Daemon) RemoveRoute(_ context.Context, req *usherv1.RemoveRouteRequest)
 	return &usherv1.RemoveRouteResponse{Route: api.ToProto(rt)}, nil
 }
 
+// RemoveRoutes tolerates hosts with no route, like RemoveRoute.
+func (d *Daemon) RemoveRoutes(_ context.Context, req *usherv1.RemoveRoutesRequest) (*usherv1.RemoveRoutesResponse, error) {
+	hosts := make([]string, 0, len(req.GetHosts()))
+	for _, h := range req.GetHosts() {
+		hosts = append(hosts, route.Sanitize(h))
+	}
+
+	d.applyMu.Lock()
+	defer d.applyMu.Unlock()
+
+	removed, err := d.store.RemoveHosts(hosts)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if err := d.applyLocked(); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	routes := make([]*usherv1.Route, 0, len(removed))
+	for _, r := range removed {
+		routes = append(routes, api.ToProto(r))
+	}
+	return &usherv1.RemoveRoutesResponse{Routes: routes}, nil
+}
+
 // RemoveMachineRoutes tolerates a machine with no routes, for the same reason
 // RemoveRoute does.
 func (d *Daemon) RemoveMachineRoutes(_ context.Context, req *usherv1.RemoveMachineRoutesRequest) (*usherv1.RemoveMachineRoutesResponse, error) {

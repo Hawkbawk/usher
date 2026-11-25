@@ -29,6 +29,23 @@ func Run(args ...string) error {
 	return nil
 }
 
+// Capture runs a sandbox command quietly. Its output is only shown, inside the
+// returned error, when the command fails.
+func Capture(args ...string) error {
+	var out bytes.Buffer
+	cmd := exec.Command("sbx", args...)
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(out.String())
+		if msg == "" {
+			return fmt.Errorf("sbx %s: %w", strings.Join(args, " "), err)
+		}
+		return fmt.Errorf("sbx %s: %w: %s", strings.Join(args, " "), err, msg)
+	}
+	return nil
+}
+
 // Sandbox is the subset of `sbx ls --format json` that usher uses. Unknown
 // fields are ignored, so new sbx releases don't break decoding.
 type Sandbox struct {

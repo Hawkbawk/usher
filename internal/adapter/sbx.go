@@ -52,7 +52,7 @@ func (Sbx) Publish(_ context.Context, r route.Route) error {
 	if existing != 0 {
 		return nil
 	}
-	return sbx.Run("port", "publish", r.Machine,
+	return sbx.Capture("port", "publish", r.Machine,
 		fmt.Sprintf("127.0.0.1:%d:%d", r.HostPort, r.MachinePort))
 }
 
@@ -62,7 +62,7 @@ func (Sbx) Detach(_ context.Context, r route.Route, portStillUsed bool) error {
 		// publish.
 		return nil
 	}
-	return sbx.Run("port", "unpublish", r.Machine,
+	return sbx.Capture("port", "unpublish", r.Machine,
 		fmt.Sprintf("127.0.0.1:%d:%d", r.HostPort, r.MachinePort))
 }
 

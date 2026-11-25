@@ -80,6 +80,16 @@ message RemoveRouteResponse {
   Route route = 1;
 }
 
+// RemoveRoutesRequest drops several hosts in one config reload.
+message RemoveRoutesRequest {
+  repeated string hosts = 1;
+}
+
+message RemoveRoutesResponse {
+  // routes are the routes that were removed. Hosts with no route are skipped.
+  repeated Route routes = 1;
+}
+
 // RemoveMachineRoutesRequest drops every route for a machine at once, e.g.
 // when the machine itself is being destroyed.
 message RemoveMachineRoutesRequest {
@@ -98,5 +108,7 @@ service RouteService {
   // RemoveRoute succeeds even when the host has no route: `usher down` should
   // still tear the machine down when only the route is already gone.
   rpc RemoveRoute(RemoveRouteRequest) returns (RemoveRouteResponse);
+  // RemoveRoutes is RemoveRoute for many hosts, with a single Caddy reload.
+  rpc RemoveRoutes(RemoveRoutesRequest) returns (RemoveRoutesResponse);
   rpc RemoveMachineRoutes(RemoveMachineRoutesRequest) returns (RemoveMachineRoutesResponse);
 }
