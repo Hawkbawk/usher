@@ -1,12 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/hawkbawk/usher/internal/adapter"
+	"github.com/hawkbawk/usher/internal/prompt"
 	"github.com/hawkbawk/usher/internal/route"
 )
 
@@ -14,9 +15,12 @@ func newUpCmd() *cobra.Command {
 	var adapterName string
 
 	cmd := &cobra.Command{
-		Use:   "up <machine> <port> <hostname> | <ip>:<port> <hostname>",
-		Short: "Route a hostname to a machine",
+		Use:     "up [<machine> <port> <hostname> | <ip>:<port> <hostname>]",
+		Aliases: []string{"add"},
+		Short:   "Route a hostname to a machine",
 		Long: `Route https://<hostname>.<domain> to a port on a machine.
+
+Run it with no arguments to be prompted for everything instead.
 
 The adapter decides what a machine name means and how usher reaches it:
 
@@ -30,51 +34,32 @@ all; the proxy points straight at that address.
 usher never creates a machine. The machine has to be running already.
 
 A machine can have as many hostnames as you like, all pointing at it at once.`,
-		Example: `  usher up canvas-lms 3000 canvas -a orb
+		Example: `  usher up
+  usher up canvas-lms 3000 canvas -a orb
   usher up my-sandbox 3000 lti --adapter sbx
   usher up postgres-container 5432 db -a docker
   usher up 10.0.0.5:8080 legacy`,
-		Args: cobra.RangeArgs(2, 3),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return nil
+			}
+			return cobra.RangeArgs(2, 3)(cmd, args)
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				ans, err := prompt.Run(cmd.Context(), adapter.Listers())
+				if err != nil {
+					return err
+				}
+				return addRoute(cmd.Context(), ans.Adapter.Kind(), ans.Machine, ans.Port, ans.Hostname)
+			}
+
 			kind, machine, port, hostname, err := parseUpArgs(args, adapterName, cmd.Flags().Changed("adapter"))
 			if err != nil {
 				return err
 			}
 
-			cfg, client, err := load()
-			if err != nil {
-				return err
-			}
-			defer client.Close()
-
-			a, err := adapter.For(kind)
-			if err != nil {
-				return err
-			}
-
-			r, err := a.Attach(cmd.Context(), machine, port)
-			if err != nil {
-				return err
-			}
-			r.Host = hostname
-
-			// Reserve the route first: the sbx adapter can't publish until the
-			// daemon has told it which host port to use.
-			stored, err := client.Upsert(r)
-			if err != nil {
-				return err
-			}
-
-			if err := a.Publish(cmd.Context(), stored); err != nil {
-				// Never leave a route pointing at something unreachable.
-				if _, _, rmErr := client.Remove(stored.Host); rmErr != nil {
-					return fmt.Errorf("%w (and rolling back the route failed: %v)", err, rmErr)
-				}
-				return err
-			}
-
-			fmt.Printf("https://%s.%s -> %s\n", stored.Host, cfg.Domain, stored.Upstream)
-			return nil
+			return addRoute(cmd.Context(), kind, machine, port, hostname)
 		},
 	}
 
@@ -103,9 +88,9 @@ func parseUpArgs(args []string, adapterName string, adapterSet bool) (kind route
 	if err != nil {
 		return "", "", 0, "", err
 	}
-	port, err = strconv.Atoi(args[1])
-	if err != nil || port < 1 || port > 65535 {
-		return "", "", 0, "", fmt.Errorf("%q is not a port between 1 and 65535", args[1])
+	port, err = route.ParsePort(args[1])
+	if err != nil {
+		return "", "", 0, "", err
 	}
 	hostname, err = sanitizeHostname(args[2])
 	return kind, args[0], port, hostname, err
@@ -119,4 +104,43 @@ func sanitizeHostname(s string) (string, error) {
 		return "", fmt.Errorf("%q does not reduce to a usable hostname", s)
 	}
 	return h, nil
+}
+
+// addRoute attaches to a machine, reserves the route with the daemon, and
+// publishes it. It's shared by `up` and the interactive `add`.
+func addRoute(ctx context.Context, kind route.Adapter, machine string, port int, hostname string) error {
+	cfg, client, err := load()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	a, err := adapter.For(kind)
+	if err != nil {
+		return err
+	}
+
+	r, err := a.Attach(ctx, machine, port)
+	if err != nil {
+		return err
+	}
+	r.Host = hostname
+
+	// Reserve the route first: the sbx adapter can't publish until the
+	// daemon has told it which host port to use.
+	stored, err := client.Upsert(r)
+	if err != nil {
+		return err
+	}
+
+	if err := a.Publish(ctx, stored); err != nil {
+		// Never leave a route pointing at something unreachable.
+		if _, _, rmErr := client.Remove(stored.Host); rmErr != nil {
+			return fmt.Errorf("%w (and rolling back the route failed: %v)", err, rmErr)
+		}
+		return err
+	}
+
+	fmt.Printf("https://%s.%s -> %s\n", stored.Host, cfg.Domain, stored.Upstream)
+	return nil
 }

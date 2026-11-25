@@ -5,8 +5,8 @@
 package sbx
 
 import (
-	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,9 +27,16 @@ func Run(args ...string) error {
 	return nil
 }
 
-// Names lists existing sandbox names from the first column of `sbx ls`.
-func Names() ([]string, error) {
-	cmd := exec.Command("sbx", "ls")
+// Sandbox is the subset of `sbx ls --format json` that usher uses. Unknown
+// fields are ignored, so new sbx releases don't break decoding.
+type Sandbox struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+// List returns the existing sandboxes.
+func List() ([]Sandbox, error) {
+	cmd := exec.Command("sbx", "ls", "--format", "json")
 	var out, errb bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
@@ -37,18 +44,24 @@ func Names() ([]string, error) {
 		return nil, fmt.Errorf("sbx ls: %w: %s", err, strings.TrimSpace(errb.String()))
 	}
 
-	var names []string
-	scanner := bufio.NewScanner(&out)
-	for i := 0; scanner.Scan(); i++ {
-		if i == 0 {
-			continue // header row
-		}
-		fields := strings.Fields(scanner.Text())
-		if len(fields) > 0 {
-			names = append(names, fields[0])
-		}
+	var sandboxes []Sandbox
+	if err := json.NewDecoder(&out).Decode(&sandboxes); err != nil {
+		return nil, fmt.Errorf("decoding sbx ls output: %w", err)
 	}
-	return names, scanner.Err()
+	return sandboxes, nil
+}
+
+// Names lists existing sandbox names.
+func Names() ([]string, error) {
+	sandboxes, err := List()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(sandboxes))
+	for i, sb := range sandboxes {
+		names[i] = sb.Name
+	}
+	return names, nil
 }
 
 // Exists reports whether a sandbox with exactly this name is present.

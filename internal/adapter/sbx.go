@@ -17,6 +17,10 @@ type Sbx struct{}
 
 func (Sbx) Kind() route.Adapter { return route.Sbx }
 
+func (Sbx) Label() string { return "Docker Sandbox (sbx)" }
+
+func (Sbx) Machines(_ context.Context) ([]string, error) { return sbx.Names() }
+
 func (Sbx) Attach(_ context.Context, machine string, port int) (route.Route, error) {
 	exists, err := sbx.Exists(machine)
 	if err != nil {

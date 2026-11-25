@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -299,4 +300,13 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	return os.Rename(tmp, s.path)
+}
+
+// ParsePort parses a TCP port number from user input.
+func ParsePort(s string) (int, error) {
+	p, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil || p < 1 || p > 65535 {
+		return 0, fmt.Errorf("%q is not a port between 1 and 65535", s)
+	}
+	return p, nil
 }
