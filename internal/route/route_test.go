@@ -236,3 +236,24 @@ func TestRemoveMachineDropsAllItsHosts(t *testing.T) {
 func sbxRoute(host, machine string, port int) Route {
 	return Route{Host: host, Adapter: Sbx, Machine: machine, MachinePort: port}
 }
+
+func TestUpsertManySharesHostPort(t *testing.T) {
+	store, err := NewStore(filepath.Join(t.TempDir(), "routes.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := store.UpsertMany([]Route{
+		{Host: "a", Adapter: Sbx, Machine: "m", MachinePort: 3000},
+		{Host: "b", Adapter: Sbx, Machine: "m", MachinePort: 3000},
+	}, 30000, 40000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].HostPort == 0 || got[0].HostPort != got[1].HostPort {
+		t.Fatalf("want two routes sharing a host port, got %+v", got)
+	}
+	if n := len(store.List()); n != 2 {
+		t.Errorf("stored %d routes, want 2", n)
+	}
+}

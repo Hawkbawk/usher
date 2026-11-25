@@ -71,6 +71,18 @@ message UpsertRouteResponse {
   Route route = 1;
 }
 
+// UpsertRoutesRequest is UpsertRoute for many routes, applied with a single
+// Caddy reload. The batch is all-or-nothing: if any route is invalid, none are
+// stored.
+message UpsertRoutesRequest {
+  repeated UpsertRouteRequest routes = 1;
+}
+
+message UpsertRoutesResponse {
+  // routes are the routes as stored, in request order.
+  repeated Route routes = 1;
+}
+
 message RemoveRouteRequest {
   string host = 1;
 }
@@ -105,6 +117,8 @@ message RemoveMachineRoutesResponse {
 service RouteService {
   rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse);
   rpc UpsertRoute(UpsertRouteRequest) returns (UpsertRouteResponse);
+  // UpsertRoutes is UpsertRoute for many routes, with a single Caddy reload.
+  rpc UpsertRoutes(UpsertRoutesRequest) returns (UpsertRoutesResponse);
   // RemoveRoute succeeds even when the host has no route: `usher down` should
   // still tear the machine down when only the route is already gone.
   rpc RemoveRoute(RemoveRouteRequest) returns (RemoveRouteResponse);

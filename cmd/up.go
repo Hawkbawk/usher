@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -51,7 +52,7 @@ A machine can have as many hostnames as you like, all pointing at it at once.`,
 				if err != nil {
 					return err
 				}
-				return addRoute(cmd.Context(), ans.Adapter.Kind(), ans.Machine, ans.Port, ans.Hostname)
+				return addRoute(cmd.Context(), ans.Adapter.Kind(), ans.Machine, ans.Port, ans.Hostnames...)
 			}
 
 			kind, machine, port, hostname, err := parseUpArgs(args, adapterName, cmd.Flags().Changed("adapter"))
@@ -106,9 +107,9 @@ func sanitizeHostname(s string) (string, error) {
 	return h, nil
 }
 
-// addRoute attaches to a machine, reserves the route with the daemon, and
-// publishes it. It's shared by `up` and the interactive `add`.
-func addRoute(ctx context.Context, kind route.Adapter, machine string, port int, hostname string) error {
+// addRoute attaches to a machine, reserves the routes with the daemon in one
+// call, and publishes them. It's shared by `up` and the interactive `add`.
+func addRoute(ctx context.Context, kind route.Adapter, machine string, port int, hostnames ...string) error {
 	cfg, client, err := load()
 	if err != nil {
 		return err
@@ -120,27 +121,39 @@ func addRoute(ctx context.Context, kind route.Adapter, machine string, port int,
 		return err
 	}
 
-	r, err := a.Attach(ctx, machine, port)
+	base, err := a.Attach(ctx, machine, port)
 	if err != nil {
 		return err
 	}
-	r.Host = hostname
+	reqs := make([]route.Route, 0, len(hostnames))
+	for _, h := range hostnames {
+		r := base
+		r.Host = h
+		reqs = append(reqs, r)
+	}
 
-	// Reserve the route first: the sbx adapter can't publish until the
+	// Reserve the routes first: the sbx adapter can't publish until the
 	// daemon has told it which host port to use.
-	stored, err := client.Upsert(r)
+	stored, err := client.UpsertMany(reqs)
 	if err != nil {
 		return err
 	}
 
-	if err := a.Publish(ctx, stored); err != nil {
-		// Never leave a route pointing at something unreachable.
-		if _, _, rmErr := client.Remove(stored.Host); rmErr != nil {
-			return fmt.Errorf("%w (and rolling back the route failed: %v)", err, rmErr)
+	var errs []error
+	var failed []string
+	for _, r := range stored {
+		if err := a.Publish(ctx, r); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", r.Host, err))
+			failed = append(failed, r.Host)
+			continue
 		}
-		return err
+		fmt.Printf("https://%s.%s -> %s\n", r.Host, cfg.Domain, r.Upstream)
 	}
-
-	fmt.Printf("https://%s.%s -> %s\n", stored.Host, cfg.Domain, stored.Upstream)
-	return nil
+	if len(failed) > 0 {
+		// Never leave a route pointing at something unreachable.
+		if _, rmErr := client.RemoveMany(failed); rmErr != nil {
+			errs = append(errs, fmt.Errorf("rolling back the failed routes: %w", rmErr))
+		}
+	}
+	return errors.Join(errs...)
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
@@ -181,6 +182,56 @@ func (s *Store) Upsert(r Route, portMin, portMax int) (Route, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	r, err := s.upsertLocked(r, portMin, portMax)
+	if err != nil {
+		return Route{}, err
+	}
+	return r, s.saveLocked()
+}
+
+// UpsertMany is Upsert for several routes with a single save. Routes are
+// stored in order, so ones that share a machine port share a host port. If any
+// route fails to resolve, none of the batch is kept.
+func (s *Store) UpsertMany(rs []Route, portMin, portMax int) ([]Route, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	prev := make(map[string]Route, len(rs))
+	missing := map[string]bool{}
+	for _, r := range rs {
+		if _, seen := prev[r.Host]; seen || missing[r.Host] {
+			continue
+		}
+		if old, ok := s.routes[r.Host]; ok {
+			prev[r.Host] = old
+		} else {
+			missing[r.Host] = true
+		}
+	}
+	rollback := func() {
+		for h := range missing {
+			delete(s.routes, h)
+		}
+		maps.Copy(s.routes, prev)
+	}
+
+	out := make([]Route, 0, len(rs))
+	for _, r := range rs {
+		stored, err := s.upsertLocked(r, portMin, portMax)
+		if err != nil {
+			rollback()
+			return nil, err
+		}
+		out = append(out, stored)
+	}
+	if err := s.saveLocked(); err != nil {
+		rollback()
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Store) upsertLocked(r Route, portMin, portMax int) (Route, error) {
 	switch {
 	case r.Upstream != "":
 		// Static and orb: the caller already knows the dial target.
@@ -198,7 +249,7 @@ func (s *Store) Upsert(r Route, portMin, portMax int) (Route, error) {
 	}
 
 	s.routes[r.Host] = r
-	return r, s.saveLocked()
+	return r, nil
 }
 
 // allocLocked resolves the host port for a route that needs one: a port

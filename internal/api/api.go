@@ -83,6 +83,34 @@ func (c *Client) Upsert(r route.Route) (route.Route, error) {
 	return FromProto(resp.GetRoute()), nil
 }
 
+// UpsertMany is Upsert for several routes in one call, with one Caddy reload.
+// The batch is all-or-nothing, and the stored routes come back in request order.
+func (c *Client) UpsertMany(rs []route.Route) ([]route.Route, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
+	defer cancel()
+
+	reqs := make([]*usherv1.UpsertRouteRequest, 0, len(rs))
+	for _, r := range rs {
+		reqs = append(reqs, &usherv1.UpsertRouteRequest{
+			Host:        r.Host,
+			Adapter:     adapterToProto(r.Adapter),
+			Machine:     r.Machine,
+			MachinePort: uint32(r.MachinePort),
+			Upstream:    r.Upstream,
+			HostPort:    uint32(r.HostPort),
+		})
+	}
+	resp, err := c.routes.UpsertRoutes(ctx, &usherv1.UpsertRoutesRequest{Routes: reqs})
+	if err != nil {
+		return nil, callErr(err)
+	}
+	out := make([]route.Route, 0, len(resp.GetRoutes()))
+	for _, r := range resp.GetRoutes() {
+		out = append(out, FromProto(r))
+	}
+	return out, nil
+}
+
 // Remove removes host's route, if it has one, and reports whether it did.
 func (c *Client) Remove(host string) (route.Route, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
