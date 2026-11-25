@@ -8,9 +8,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -74,4 +76,46 @@ func Exists(name string) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+// PublishedHostPort returns the host port sbx already forwards to the given
+// sandbox port, or 0 if there is none. sbx allows only one host port per
+// sandbox port, so publishing again would fail.
+func PublishedHostPort(name string, sandboxPort int) (int, error) {
+	cmd := exec.Command("sbx", "inspect", name, "--format", "json")
+	var out, errb bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errb
+	if err := cmd.Run(); err != nil {
+		return 0, fmt.Errorf("sbx inspect %s: %w: %s", name, err, strings.TrimSpace(errb.String()))
+	}
+
+	var info struct {
+		// Entries look like "127.0.0.1:36728->3000/tcp4".
+		Ports []string `json:"ports"`
+	}
+	if err := json.NewDecoder(&out).Decode(&info); err != nil {
+		return 0, fmt.Errorf("decoding sbx inspect output: %w", err)
+	}
+	for _, p := range info.Ports {
+		host, sandbox, ok := strings.Cut(p, "->")
+		if !ok {
+			continue
+		}
+		sandbox, _, _ = strings.Cut(sandbox, "/")
+		if sandbox != strconv.Itoa(sandboxPort) {
+			continue
+		}
+		_, port, err := net.SplitHostPort(host)
+		if err != nil {
+			return 0, fmt.Errorf("unparseable sbx port mapping %q: %w", p, err)
+		}
+		hostPort, err := strconv.Atoi(port)
+		if err != nil {
+			return 0, fmt.Errorf("unparseable sbx port mapping %q: %w", p, err)
+		}
+
+		return hostPort, nil
+	}
+	return 0, nil
 }
