@@ -1,6 +1,6 @@
 // Package prompt runs the interactive flow behind `usher up` with no
-// arguments: it asks which kind of machine, which machine, a port, and a
-// hostname, and returns the answers for the caller to act on.
+// arguments: it asks which kind of machine, which machine, a port, and one
+// or more hostnames, and returns the answers for the caller to act on.
 //
 // It never touches the daemon or an adapter's Attach/Publish. It only asks
 // adapters to list their machines, so the caller decides what to do with the
@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/charmbracelet/huh"
 
@@ -24,10 +25,11 @@ var ErrCancelled = errors.New("cancelled")
 
 // Answers is what the user chose.
 type Answers struct {
-	Adapter  adapter.Lister
-	Machine  string
-	Port     int
-	Hostname string // already sanitized to a single DNS label
+	Adapter adapter.Lister
+	Machine string
+	Port    int
+	// Hostnames are already sanitized to single DNS labels and deduplicated.
+	Hostnames []string
 }
 
 type config struct {
@@ -80,8 +82,8 @@ func Run(ctx context.Context, adapters []adapter.Lister, opts ...Option) (Answer
 		return Answers{}, fmt.Errorf("no %s machines found", ans.Adapter.Label())
 	}
 
-	var portText, hostText string
-	if err := cfg.run(ctx, routeForm(machines, &ans.Machine, &portText, &hostText)); err != nil {
+	var portText, hostsText string
+	if err := cfg.run(ctx, routeForm(machines, &ans.Machine, &portText, &hostsText)); err != nil {
 		return Answers{}, err
 	}
 
@@ -89,8 +91,24 @@ func Run(ctx context.Context, adapters []adapter.Lister, opts ...Option) (Answer
 	if ans.Port, err = route.ParsePort(portText); err != nil {
 		return Answers{}, err
 	}
-	ans.Hostname = route.Sanitize(hostText)
+	ans.Hostnames = ParseHostnames(hostsText)
 	return ans, nil
+}
+
+// ParseHostnames splits a comma-separated list, sanitizes each piece, and drops
+// blanks and repeats. Order is kept.
+func ParseHostnames(text string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, f := range strings.Split(text, ",") {
+		h := route.Sanitize(strings.TrimSpace(f))
+		if h == "" || seen[h] {
+			continue
+		}
+		seen[h] = true
+		out = append(out, h)
+	}
+	return out
 }
 
 func (c config) run(ctx context.Context, f *huh.Form) error {
@@ -122,7 +140,7 @@ func adapterForm(adapters []adapter.Lister, out *route.Adapter) *huh.Form {
 	))
 }
 
-func routeForm(machines []string, machine, port, host *string) *huh.Form {
+func routeForm(machines []string, machine, port, hosts *string) *huh.Form {
 	return huh.NewForm(huh.NewGroup(
 		huh.NewSelect[string]().
 			Title("Which machine?").
@@ -136,12 +154,12 @@ func routeForm(machines []string, machine, port, host *string) *huh.Form {
 				return err
 			}),
 		huh.NewInput().
-			Title("Hostname").
-			Description("Becomes https://<hostname>.<domain>").
-			Value(host).
+			Title("Hostnames").
+			Description("Comma-separated. Each becomes https://<hostname>.<domain>").
+			Value(hosts).
 			Validate(func(s string) error {
-				if route.Sanitize(s) == "" {
-					return fmt.Errorf("%q does not reduce to a usable hostname", s)
+				if len(ParseHostnames(s)) == 0 {
+					return errors.New("enter at least one usable hostname")
 				}
 				return nil
 			}),

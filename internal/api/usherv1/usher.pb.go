@@ -400,6 +400,98 @@ func (x *UpsertRouteResponse) GetRoute() *Route {
 	return nil
 }
 
+// UpsertRoutesRequest is UpsertRoute for many routes, applied with a single
+// Caddy reload. The batch is all-or-nothing: if any route is invalid, none are
+// stored.
+type UpsertRoutesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Routes        []*UpsertRouteRequest  `protobuf:"bytes,1,rep,name=routes,proto3" json:"routes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertRoutesRequest) Reset() {
+	*x = UpsertRoutesRequest{}
+	mi := &file_usher_v1_usher_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertRoutesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertRoutesRequest) ProtoMessage() {}
+
+func (x *UpsertRoutesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_usher_v1_usher_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertRoutesRequest.ProtoReflect.Descriptor instead.
+func (*UpsertRoutesRequest) Descriptor() ([]byte, []int) {
+	return file_usher_v1_usher_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *UpsertRoutesRequest) GetRoutes() []*UpsertRouteRequest {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
+type UpsertRoutesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// routes are the routes as stored, in request order.
+	Routes        []*Route `protobuf:"bytes,1,rep,name=routes,proto3" json:"routes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertRoutesResponse) Reset() {
+	*x = UpsertRoutesResponse{}
+	mi := &file_usher_v1_usher_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertRoutesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertRoutesResponse) ProtoMessage() {}
+
+func (x *UpsertRoutesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_usher_v1_usher_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertRoutesResponse.ProtoReflect.Descriptor instead.
+func (*UpsertRoutesResponse) Descriptor() ([]byte, []int) {
+	return file_usher_v1_usher_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *UpsertRoutesResponse) GetRoutes() []*Route {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
 type RemoveRouteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
@@ -409,7 +501,7 @@ type RemoveRouteRequest struct {
 
 func (x *RemoveRouteRequest) Reset() {
 	*x = RemoveRouteRequest{}
-	mi := &file_usher_v1_usher_proto_msgTypes[5]
+	mi := &file_usher_v1_usher_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +513,7 @@ func (x *RemoveRouteRequest) String() string {
 func (*RemoveRouteRequest) ProtoMessage() {}
 
 func (x *RemoveRouteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usher_v1_usher_proto_msgTypes[5]
+	mi := &file_usher_v1_usher_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +526,7 @@ func (x *RemoveRouteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveRouteRequest.ProtoReflect.Descriptor instead.
 func (*RemoveRouteRequest) Descriptor() ([]byte, []int) {
-	return file_usher_v1_usher_proto_rawDescGZIP(), []int{5}
+	return file_usher_v1_usher_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RemoveRouteRequest) GetHost() string {
@@ -454,7 +546,7 @@ type RemoveRouteResponse struct {
 
 func (x *RemoveRouteResponse) Reset() {
 	*x = RemoveRouteResponse{}
-	mi := &file_usher_v1_usher_proto_msgTypes[6]
+	mi := &file_usher_v1_usher_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -466,7 +558,7 @@ func (x *RemoveRouteResponse) String() string {
 func (*RemoveRouteResponse) ProtoMessage() {}
 
 func (x *RemoveRouteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usher_v1_usher_proto_msgTypes[6]
+	mi := &file_usher_v1_usher_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -479,7 +571,7 @@ func (x *RemoveRouteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveRouteResponse.ProtoReflect.Descriptor instead.
 func (*RemoveRouteResponse) Descriptor() ([]byte, []int) {
-	return file_usher_v1_usher_proto_rawDescGZIP(), []int{6}
+	return file_usher_v1_usher_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RemoveRouteResponse) GetRoute() *Route {
@@ -499,7 +591,7 @@ type RemoveRoutesRequest struct {
 
 func (x *RemoveRoutesRequest) Reset() {
 	*x = RemoveRoutesRequest{}
-	mi := &file_usher_v1_usher_proto_msgTypes[7]
+	mi := &file_usher_v1_usher_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -511,7 +603,7 @@ func (x *RemoveRoutesRequest) String() string {
 func (*RemoveRoutesRequest) ProtoMessage() {}
 
 func (x *RemoveRoutesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usher_v1_usher_proto_msgTypes[7]
+	mi := &file_usher_v1_usher_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -524,7 +616,7 @@ func (x *RemoveRoutesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveRoutesRequest.ProtoReflect.Descriptor instead.
 func (*RemoveRoutesRequest) Descriptor() ([]byte, []int) {
-	return file_usher_v1_usher_proto_rawDescGZIP(), []int{7}
+	return file_usher_v1_usher_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RemoveRoutesRequest) GetHosts() []string {
@@ -544,7 +636,7 @@ type RemoveRoutesResponse struct {
 
 func (x *RemoveRoutesResponse) Reset() {
 	*x = RemoveRoutesResponse{}
-	mi := &file_usher_v1_usher_proto_msgTypes[8]
+	mi := &file_usher_v1_usher_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -556,7 +648,7 @@ func (x *RemoveRoutesResponse) String() string {
 func (*RemoveRoutesResponse) ProtoMessage() {}
 
 func (x *RemoveRoutesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usher_v1_usher_proto_msgTypes[8]
+	mi := &file_usher_v1_usher_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -569,7 +661,7 @@ func (x *RemoveRoutesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveRoutesResponse.ProtoReflect.Descriptor instead.
 func (*RemoveRoutesResponse) Descriptor() ([]byte, []int) {
-	return file_usher_v1_usher_proto_rawDescGZIP(), []int{8}
+	return file_usher_v1_usher_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RemoveRoutesResponse) GetRoutes() []*Route {
@@ -591,7 +683,7 @@ type RemoveMachineRoutesRequest struct {
 
 func (x *RemoveMachineRoutesRequest) Reset() {
 	*x = RemoveMachineRoutesRequest{}
-	mi := &file_usher_v1_usher_proto_msgTypes[9]
+	mi := &file_usher_v1_usher_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -603,7 +695,7 @@ func (x *RemoveMachineRoutesRequest) String() string {
 func (*RemoveMachineRoutesRequest) ProtoMessage() {}
 
 func (x *RemoveMachineRoutesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usher_v1_usher_proto_msgTypes[9]
+	mi := &file_usher_v1_usher_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -616,7 +708,7 @@ func (x *RemoveMachineRoutesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMachineRoutesRequest.ProtoReflect.Descriptor instead.
 func (*RemoveMachineRoutesRequest) Descriptor() ([]byte, []int) {
-	return file_usher_v1_usher_proto_rawDescGZIP(), []int{9}
+	return file_usher_v1_usher_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RemoveMachineRoutesRequest) GetAdapter() Adapter {
@@ -643,7 +735,7 @@ type RemoveMachineRoutesResponse struct {
 
 func (x *RemoveMachineRoutesResponse) Reset() {
 	*x = RemoveMachineRoutesResponse{}
-	mi := &file_usher_v1_usher_proto_msgTypes[10]
+	mi := &file_usher_v1_usher_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -655,7 +747,7 @@ func (x *RemoveMachineRoutesResponse) String() string {
 func (*RemoveMachineRoutesResponse) ProtoMessage() {}
 
 func (x *RemoveMachineRoutesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usher_v1_usher_proto_msgTypes[10]
+	mi := &file_usher_v1_usher_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -668,7 +760,7 @@ func (x *RemoveMachineRoutesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMachineRoutesResponse.ProtoReflect.Descriptor instead.
 func (*RemoveMachineRoutesResponse) Descriptor() ([]byte, []int) {
-	return file_usher_v1_usher_proto_rawDescGZIP(), []int{10}
+	return file_usher_v1_usher_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RemoveMachineRoutesResponse) GetRoutes() []*Route {
@@ -701,7 +793,11 @@ const file_usher_v1_usher_proto_rawDesc = "" +
 	"\bupstream\x18\x05 \x01(\tR\bupstream\x12\x1b\n" +
 	"\thost_port\x18\x06 \x01(\rR\bhostPort\"<\n" +
 	"\x13UpsertRouteResponse\x12%\n" +
-	"\x05route\x18\x01 \x01(\v2\x0f.usher.v1.RouteR\x05route\"(\n" +
+	"\x05route\x18\x01 \x01(\v2\x0f.usher.v1.RouteR\x05route\"K\n" +
+	"\x13UpsertRoutesRequest\x124\n" +
+	"\x06routes\x18\x01 \x03(\v2\x1c.usher.v1.UpsertRouteRequestR\x06routes\"?\n" +
+	"\x14UpsertRoutesResponse\x12'\n" +
+	"\x06routes\x18\x01 \x03(\v2\x0f.usher.v1.RouteR\x06routes\"(\n" +
 	"\x12RemoveRouteRequest\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host\"<\n" +
 	"\x13RemoveRouteResponse\x12%\n" +
@@ -720,11 +816,12 @@ const file_usher_v1_usher_proto_rawDesc = "" +
 	"\x0eADAPTER_STATIC\x10\x01\x12\x0f\n" +
 	"\vADAPTER_SBX\x10\x02\x12\x0f\n" +
 	"\vADAPTER_ORB\x10\x03\x12\x12\n" +
-	"\x0eADAPTER_DOCKER\x10\x042\xa2\x03\n" +
+	"\x0eADAPTER_DOCKER\x10\x042\xf1\x03\n" +
 	"\fRouteService\x12G\n" +
 	"\n" +
 	"ListRoutes\x12\x1b.usher.v1.ListRoutesRequest\x1a\x1c.usher.v1.ListRoutesResponse\x12J\n" +
-	"\vUpsertRoute\x12\x1c.usher.v1.UpsertRouteRequest\x1a\x1d.usher.v1.UpsertRouteResponse\x12J\n" +
+	"\vUpsertRoute\x12\x1c.usher.v1.UpsertRouteRequest\x1a\x1d.usher.v1.UpsertRouteResponse\x12M\n" +
+	"\fUpsertRoutes\x12\x1d.usher.v1.UpsertRoutesRequest\x1a\x1e.usher.v1.UpsertRoutesResponse\x12J\n" +
 	"\vRemoveRoute\x12\x1c.usher.v1.RemoveRouteRequest\x1a\x1d.usher.v1.RemoveRouteResponse\x12M\n" +
 	"\fRemoveRoutes\x12\x1d.usher.v1.RemoveRoutesRequest\x1a\x1e.usher.v1.RemoveRoutesResponse\x12b\n" +
 	"\x13RemoveMachineRoutes\x12$.usher.v1.RemoveMachineRoutesRequest\x1a%.usher.v1.RemoveMachineRoutesResponseB8Z6github.com/hawkbawk/usher/internal/api/usherv1;usherv1b\x06proto3"
@@ -742,7 +839,7 @@ func file_usher_v1_usher_proto_rawDescGZIP() []byte {
 }
 
 var file_usher_v1_usher_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_usher_v1_usher_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_usher_v1_usher_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_usher_v1_usher_proto_goTypes = []any{
 	(Adapter)(0),                        // 0: usher.v1.Adapter
 	(*Route)(nil),                       // 1: usher.v1.Route
@@ -750,37 +847,43 @@ var file_usher_v1_usher_proto_goTypes = []any{
 	(*ListRoutesResponse)(nil),          // 3: usher.v1.ListRoutesResponse
 	(*UpsertRouteRequest)(nil),          // 4: usher.v1.UpsertRouteRequest
 	(*UpsertRouteResponse)(nil),         // 5: usher.v1.UpsertRouteResponse
-	(*RemoveRouteRequest)(nil),          // 6: usher.v1.RemoveRouteRequest
-	(*RemoveRouteResponse)(nil),         // 7: usher.v1.RemoveRouteResponse
-	(*RemoveRoutesRequest)(nil),         // 8: usher.v1.RemoveRoutesRequest
-	(*RemoveRoutesResponse)(nil),        // 9: usher.v1.RemoveRoutesResponse
-	(*RemoveMachineRoutesRequest)(nil),  // 10: usher.v1.RemoveMachineRoutesRequest
-	(*RemoveMachineRoutesResponse)(nil), // 11: usher.v1.RemoveMachineRoutesResponse
+	(*UpsertRoutesRequest)(nil),         // 6: usher.v1.UpsertRoutesRequest
+	(*UpsertRoutesResponse)(nil),        // 7: usher.v1.UpsertRoutesResponse
+	(*RemoveRouteRequest)(nil),          // 8: usher.v1.RemoveRouteRequest
+	(*RemoveRouteResponse)(nil),         // 9: usher.v1.RemoveRouteResponse
+	(*RemoveRoutesRequest)(nil),         // 10: usher.v1.RemoveRoutesRequest
+	(*RemoveRoutesResponse)(nil),        // 11: usher.v1.RemoveRoutesResponse
+	(*RemoveMachineRoutesRequest)(nil),  // 12: usher.v1.RemoveMachineRoutesRequest
+	(*RemoveMachineRoutesResponse)(nil), // 13: usher.v1.RemoveMachineRoutesResponse
 }
 var file_usher_v1_usher_proto_depIdxs = []int32{
 	0,  // 0: usher.v1.Route.adapter:type_name -> usher.v1.Adapter
 	1,  // 1: usher.v1.ListRoutesResponse.routes:type_name -> usher.v1.Route
 	0,  // 2: usher.v1.UpsertRouteRequest.adapter:type_name -> usher.v1.Adapter
 	1,  // 3: usher.v1.UpsertRouteResponse.route:type_name -> usher.v1.Route
-	1,  // 4: usher.v1.RemoveRouteResponse.route:type_name -> usher.v1.Route
-	1,  // 5: usher.v1.RemoveRoutesResponse.routes:type_name -> usher.v1.Route
-	0,  // 6: usher.v1.RemoveMachineRoutesRequest.adapter:type_name -> usher.v1.Adapter
-	1,  // 7: usher.v1.RemoveMachineRoutesResponse.routes:type_name -> usher.v1.Route
-	2,  // 8: usher.v1.RouteService.ListRoutes:input_type -> usher.v1.ListRoutesRequest
-	4,  // 9: usher.v1.RouteService.UpsertRoute:input_type -> usher.v1.UpsertRouteRequest
-	6,  // 10: usher.v1.RouteService.RemoveRoute:input_type -> usher.v1.RemoveRouteRequest
-	8,  // 11: usher.v1.RouteService.RemoveRoutes:input_type -> usher.v1.RemoveRoutesRequest
-	10, // 12: usher.v1.RouteService.RemoveMachineRoutes:input_type -> usher.v1.RemoveMachineRoutesRequest
-	3,  // 13: usher.v1.RouteService.ListRoutes:output_type -> usher.v1.ListRoutesResponse
-	5,  // 14: usher.v1.RouteService.UpsertRoute:output_type -> usher.v1.UpsertRouteResponse
-	7,  // 15: usher.v1.RouteService.RemoveRoute:output_type -> usher.v1.RemoveRouteResponse
-	9,  // 16: usher.v1.RouteService.RemoveRoutes:output_type -> usher.v1.RemoveRoutesResponse
-	11, // 17: usher.v1.RouteService.RemoveMachineRoutes:output_type -> usher.v1.RemoveMachineRoutesResponse
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	4,  // 4: usher.v1.UpsertRoutesRequest.routes:type_name -> usher.v1.UpsertRouteRequest
+	1,  // 5: usher.v1.UpsertRoutesResponse.routes:type_name -> usher.v1.Route
+	1,  // 6: usher.v1.RemoveRouteResponse.route:type_name -> usher.v1.Route
+	1,  // 7: usher.v1.RemoveRoutesResponse.routes:type_name -> usher.v1.Route
+	0,  // 8: usher.v1.RemoveMachineRoutesRequest.adapter:type_name -> usher.v1.Adapter
+	1,  // 9: usher.v1.RemoveMachineRoutesResponse.routes:type_name -> usher.v1.Route
+	2,  // 10: usher.v1.RouteService.ListRoutes:input_type -> usher.v1.ListRoutesRequest
+	4,  // 11: usher.v1.RouteService.UpsertRoute:input_type -> usher.v1.UpsertRouteRequest
+	6,  // 12: usher.v1.RouteService.UpsertRoutes:input_type -> usher.v1.UpsertRoutesRequest
+	8,  // 13: usher.v1.RouteService.RemoveRoute:input_type -> usher.v1.RemoveRouteRequest
+	10, // 14: usher.v1.RouteService.RemoveRoutes:input_type -> usher.v1.RemoveRoutesRequest
+	12, // 15: usher.v1.RouteService.RemoveMachineRoutes:input_type -> usher.v1.RemoveMachineRoutesRequest
+	3,  // 16: usher.v1.RouteService.ListRoutes:output_type -> usher.v1.ListRoutesResponse
+	5,  // 17: usher.v1.RouteService.UpsertRoute:output_type -> usher.v1.UpsertRouteResponse
+	7,  // 18: usher.v1.RouteService.UpsertRoutes:output_type -> usher.v1.UpsertRoutesResponse
+	9,  // 19: usher.v1.RouteService.RemoveRoute:output_type -> usher.v1.RemoveRouteResponse
+	11, // 20: usher.v1.RouteService.RemoveRoutes:output_type -> usher.v1.RemoveRoutesResponse
+	13, // 21: usher.v1.RouteService.RemoveMachineRoutes:output_type -> usher.v1.RemoveMachineRoutesResponse
+	16, // [16:22] is the sub-list for method output_type
+	10, // [10:16] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_usher_v1_usher_proto_init() }
@@ -794,7 +897,7 @@ func file_usher_v1_usher_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_usher_v1_usher_proto_rawDesc), len(file_usher_v1_usher_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

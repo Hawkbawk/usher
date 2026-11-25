@@ -160,41 +160,15 @@ func (d *Daemon) ListRoutes(_ context.Context, _ *usherv1.ListRoutesRequest) (*u
 }
 
 func (d *Daemon) UpsertRoute(_ context.Context, req *usherv1.UpsertRouteRequest) (*usherv1.UpsertRouteResponse, error) {
-	host := route.Sanitize(req.GetHost())
-	if host == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "%q does not sanitise to a usable hostname", req.GetHost())
-	}
-	adapter := api.AdapterFromProto(req.GetAdapter())
-	if adapter == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "unknown adapter %v", req.GetAdapter())
-	}
-	// Machine names are not sanitised: container and VM names legitimately
-	// contain characters a DNS label can't, and we never put one in a
-	// hostname. Only static routes may omit it.
-	machine := req.GetMachine()
-	if machine == "" && adapter != route.Static {
-		return nil, status.Errorf(codes.InvalidArgument, "the %s adapter needs a machine name", adapter)
-	}
-	port := req.GetMachinePort()
-	if port < 1 || port > 65535 {
-		return nil, status.Errorf(codes.InvalidArgument, "port %d out of range", port)
-	}
-	hostPort := req.GetHostPort()
-	if hostPort > 65535 {
-		return nil, status.Errorf(codes.InvalidArgument, "host port %d out of range", hostPort)
+	r, err := d.validateUpsert(req)
+	if err != nil {
+		return nil, err
 	}
 
 	d.applyMu.Lock()
 	defer d.applyMu.Unlock()
 
-	rt, err := d.store.Upsert(route.Route{
-		Host:        host,
-		Adapter:     adapter,
-		Machine:     machine,
-		MachinePort: int(port),
-		Upstream:    req.GetUpstream(),
-		HostPort:    int(hostPort),
-	}, d.cfg.PortMin, d.cfg.PortMax)
+	rt, err := d.store.Upsert(r, d.cfg.PortMin, d.cfg.PortMax)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -202,6 +176,70 @@ func (d *Daemon) UpsertRoute(_ context.Context, req *usherv1.UpsertRouteRequest)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &usherv1.UpsertRouteResponse{Route: api.ToProto(rt)}, nil
+}
+
+// UpsertRoutes validates the whole batch before storing any of it, then
+// reloads Caddy once.
+func (d *Daemon) UpsertRoutes(_ context.Context, req *usherv1.UpsertRoutesRequest) (*usherv1.UpsertRoutesResponse, error) {
+	rs := make([]route.Route, 0, len(req.GetRoutes()))
+	for _, rr := range req.GetRoutes() {
+		r, err := d.validateUpsert(rr)
+		if err != nil {
+			return nil, err
+		}
+		rs = append(rs, r)
+	}
+
+	d.applyMu.Lock()
+	defer d.applyMu.Unlock()
+
+	stored, err := d.store.UpsertMany(rs, d.cfg.PortMin, d.cfg.PortMax)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if err := d.applyLocked(); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	routes := make([]*usherv1.Route, 0, len(stored))
+	for _, r := range stored {
+		routes = append(routes, api.ToProto(r))
+	}
+	return &usherv1.UpsertRoutesResponse{Routes: routes}, nil
+}
+
+// validateUpsert turns a wire request into a route, or an InvalidArgument error.
+func (d *Daemon) validateUpsert(req *usherv1.UpsertRouteRequest) (route.Route, error) {
+	host := route.Sanitize(req.GetHost())
+	if host == "" {
+		return route.Route{}, status.Errorf(codes.InvalidArgument, "%q does not sanitise to a usable hostname", req.GetHost())
+	}
+	adapter := api.AdapterFromProto(req.GetAdapter())
+	if adapter == "" {
+		return route.Route{}, status.Errorf(codes.InvalidArgument, "unknown adapter %v", req.GetAdapter())
+	}
+	// Machine names are not sanitised: container and VM names legitimately
+	// contain characters a DNS label can't, and we never put one in a
+	// hostname. Only static routes may omit it.
+	machine := req.GetMachine()
+	if machine == "" && adapter != route.Static {
+		return route.Route{}, status.Errorf(codes.InvalidArgument, "the %s adapter needs a machine name", adapter)
+	}
+	port := req.GetMachinePort()
+	if port < 1 || port > 65535 {
+		return route.Route{}, status.Errorf(codes.InvalidArgument, "port %d out of range", port)
+	}
+	hostPort := req.GetHostPort()
+	if hostPort > 65535 {
+		return route.Route{}, status.Errorf(codes.InvalidArgument, "host port %d out of range", hostPort)
+	}
+	return route.Route{
+		Host:        host,
+		Adapter:     adapter,
+		Machine:     machine,
+		MachinePort: int(port),
+		Upstream:    req.GetUpstream(),
+		HostPort:    int(hostPort),
+	}, nil
 }
 
 // RemoveRoute tolerates a host with no route: `usher down` should still tear

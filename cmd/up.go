@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -15,9 +16,9 @@ func newUpCmd() *cobra.Command {
 	var adapterName string
 
 	cmd := &cobra.Command{
-		Use:     "up [<machine> <port> <hostname> | <ip>:<port> <hostname>]",
+		Use:     "up [<machine> <port> <hostnames> | <ip>:<port> <hostnames>]",
 		Aliases: []string{"add"},
-		Short:   "Route a hostname to a machine",
+		Short:   "Route one or more hostnames to a machine",
 		Long: `Route https://<hostname>.<domain> to a port on a machine.
 
 Run it with no arguments to be prompted for everything instead.
@@ -33,11 +34,13 @@ all; the proxy points straight at that address.
 
 usher never creates a machine. The machine has to be running already.
 
-A machine can have as many hostnames as you like, all pointing at it at once.`,
+A machine can have as many hostnames as you like, all pointing at it at once.
+Give several at a time as a comma-separated list, e.g. web,api,admin.`,
 		Example: `  usher up
   usher up canvas-lms 3000 canvas -a orb
   usher up my-sandbox 3000 lti --adapter sbx
   usher up postgres-container 5432 db -a docker
+  usher up canvas-lms 3000 web,api,admin -a orb
   usher up 10.0.0.5:8080 legacy`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -51,15 +54,15 @@ A machine can have as many hostnames as you like, all pointing at it at once.`,
 				if err != nil {
 					return err
 				}
-				return addRoute(cmd.Context(), ans.Adapter.Kind(), ans.Machine, ans.Port, ans.Hostname)
+				return addRoute(cmd.Context(), ans.Adapter.Kind(), ans.Machine, ans.Port, ans.Hostnames...)
 			}
 
-			kind, machine, port, hostname, err := parseUpArgs(args, adapterName, cmd.Flags().Changed("adapter"))
+			kind, machine, port, hostnames, err := parseUpArgs(args, adapterName, cmd.Flags().Changed("adapter"))
 			if err != nil {
 				return err
 			}
 
-			return addRoute(cmd.Context(), kind, machine, port, hostname)
+			return addRoute(cmd.Context(), kind, machine, port, hostnames...)
 		},
 	}
 
@@ -69,31 +72,42 @@ A machine can have as many hostnames as you like, all pointing at it at once.`,
 }
 
 // parseUpArgs splits the two accepted forms apart. Two args is the static
-// ip:port form; three is a machine plus a port.
-func parseUpArgs(args []string, adapterName string, adapterSet bool) (kind route.Adapter, machine string, port int, hostname string, err error) {
+// ip:port form; three is a machine plus a port. The last arg is a
+// comma-separated list of hostnames.
+func parseUpArgs(args []string, adapterName string, adapterSet bool) (kind route.Adapter, machine string, port int, hostnames []string, err error) {
 	if len(args) == 2 {
 		ip, p, ok := adapter.ParseStatic(args[0])
 		if !ok {
-			return "", "", 0, "", fmt.Errorf("%q is not an <ip>:<port> address; "+
+			return "", "", 0, nil, fmt.Errorf("%q is not an <ip>:<port> address; "+
 				"to route to a machine give it as `usher up <machine> <port> <hostname>`", args[0])
 		}
 		if adapterSet {
-			return "", "", 0, "", fmt.Errorf("--adapter does not apply to an <ip>:<port> route")
+			return "", "", 0, nil, fmt.Errorf("--adapter does not apply to an <ip>:<port> route")
 		}
-		hostname, err = sanitizeHostname(args[1])
-		return route.Static, ip, p, hostname, err
+		hostnames, err = parseHostnames(args[1])
+		return route.Static, ip, p, hostnames, err
 	}
 
 	kind, err = route.ParseAdapter(adapterName)
 	if err != nil {
-		return "", "", 0, "", err
+		return "", "", 0, nil, err
 	}
 	port, err = route.ParsePort(args[1])
 	if err != nil {
-		return "", "", 0, "", err
+		return "", "", 0, nil, err
 	}
-	hostname, err = sanitizeHostname(args[2])
-	return kind, args[0], port, hostname, err
+	hostnames, err = parseHostnames(args[2])
+	return kind, args[0], port, hostnames, err
+}
+
+// parseHostnames reads a comma-separated list of hostnames, erroring if none
+// of it reduces to a usable label.
+func parseHostnames(s string) ([]string, error) {
+	hosts := prompt.ParseHostnames(s)
+	if len(hosts) == 0 {
+		return nil, fmt.Errorf("%q does not reduce to a usable hostname", s)
+	}
+	return hosts, nil
 }
 
 // sanitizeHostname collapses user input into the single DNS label the wildcard
@@ -106,9 +120,9 @@ func sanitizeHostname(s string) (string, error) {
 	return h, nil
 }
 
-// addRoute attaches to a machine, reserves the route with the daemon, and
-// publishes it. It's shared by `up` and the interactive `add`.
-func addRoute(ctx context.Context, kind route.Adapter, machine string, port int, hostname string) error {
+// addRoute attaches to a machine, reserves the routes with the daemon in one
+// call, and publishes them. It's shared by `up` and the interactive `add`.
+func addRoute(ctx context.Context, kind route.Adapter, machine string, port int, hostnames ...string) error {
 	cfg, client, err := load()
 	if err != nil {
 		return err
@@ -120,27 +134,39 @@ func addRoute(ctx context.Context, kind route.Adapter, machine string, port int,
 		return err
 	}
 
-	r, err := a.Attach(ctx, machine, port)
+	base, err := a.Attach(ctx, machine, port)
 	if err != nil {
 		return err
 	}
-	r.Host = hostname
+	reqs := make([]route.Route, 0, len(hostnames))
+	for _, h := range hostnames {
+		r := base
+		r.Host = h
+		reqs = append(reqs, r)
+	}
 
-	// Reserve the route first: the sbx adapter can't publish until the
+	// Reserve the routes first: the sbx adapter can't publish until the
 	// daemon has told it which host port to use.
-	stored, err := client.Upsert(r)
+	stored, err := client.UpsertMany(reqs)
 	if err != nil {
 		return err
 	}
 
-	if err := a.Publish(ctx, stored); err != nil {
-		// Never leave a route pointing at something unreachable.
-		if _, _, rmErr := client.Remove(stored.Host); rmErr != nil {
-			return fmt.Errorf("%w (and rolling back the route failed: %v)", err, rmErr)
+	var errs []error
+	var failed []string
+	for _, r := range stored {
+		if err := a.Publish(ctx, r); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", r.Host, err))
+			failed = append(failed, r.Host)
+			continue
 		}
-		return err
+		fmt.Printf("https://%s.%s -> %s\n", r.Host, cfg.Domain, r.Upstream)
 	}
-
-	fmt.Printf("https://%s.%s -> %s\n", stored.Host, cfg.Domain, stored.Upstream)
-	return nil
+	if len(failed) > 0 {
+		// Never leave a route pointing at something unreachable.
+		if _, rmErr := client.RemoveMany(failed); rmErr != nil {
+			errs = append(errs, fmt.Errorf("rolling back the failed routes: %w", rmErr))
+		}
+	}
+	return errors.Join(errs...)
 }

@@ -45,7 +45,7 @@ func TestRunSingleAdapterSkipsAdapterQuestion(t *testing.T) {
 
 	// Machine 2, port, hostname.
 	got, err := Run(context.Background(), []adapter.Lister{sbx},
-		WithIO(script("2", "3000", "My App"), io.Discard))
+		WithIO(script("2", "3000", "My"), io.Discard))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,8 +59,8 @@ func TestRunSingleAdapterSkipsAdapterQuestion(t *testing.T) {
 	if got.Port != 3000 {
 		t.Errorf("port = %d, want 3000", got.Port)
 	}
-	if got.Hostname != route.Sanitize("My App") || got.Hostname == "" {
-		t.Errorf("hostname = %q, want sanitized label", got.Hostname)
+	if len(got.Hostnames) != 1 || got.Hostnames[0] != route.Sanitize("My") {
+		t.Errorf("hostnames = %q, want [my]", got.Hostnames)
 	}
 }
 
@@ -116,5 +116,13 @@ func TestRunListError(t *testing.T) {
 func TestRunNoAdapters(t *testing.T) {
 	if _, err := Run(context.Background(), nil); err == nil {
 		t.Fatal("expected an error with no adapters")
+	}
+}
+
+func TestParseHostnames(t *testing.T) {
+	got := ParseHostnames("web, api, Web,admin,,")
+	want := []string{"web", "api", "admin"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
